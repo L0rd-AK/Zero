@@ -3,6 +3,7 @@ import { View, FlatList, Button, StyleSheet, Text } from 'react-native';
 import TaskItem from './TaskItem';
 import AddTaskModal from './AddTaskModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 const API_BASE_URL = process.env.API_URL || 'http://192.168.186.109:5000';
 
 const getTasks = async () => {
@@ -46,6 +47,15 @@ const TaskListScreen = ({ route }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [status, setStatus] = useState(route?.params?.status || 'all');
 
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('Screen focused, fetching tasks...');
+      fetchTasks();
+      return () => {
+        // Optional cleanup
+      };
+    }, [status])
+  );
   useEffect(() => {
     if (route?.params?.status) {
       setStatus(route.params.status);
