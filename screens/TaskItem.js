@@ -23,17 +23,22 @@ const TaskItem = ({ task, onComplete, onDelete, onEdit }) => {
 
   const handleComplete = () => {
     setModalVisible(false);
-    onComplete(task?.id);
+    if (onComplete && task && task._id) {
+      // Use _id instead of id for MongoDB
+      console.log('Completing task with ID:', task._id);
+      onComplete(task._id);
+    } else {
+      console.error('Cannot complete task: Invalid task ID', task);
+    }
   };
 
     // ... existing code ...
   
     const handleDelete = () => {
       setModalVisible(false);
-      if (onDelete) {
-        // Instead of deleting, we'll update the status to 'deleted'
-        const updates = { status: 'deleted' };
-        onDelete(task?.id, updates);
+      if (onDelete && task && task._id) {
+        console.log('Deleting task with ID:', task._id); // Add logging
+        onDelete(task._id);
       }
     };
     

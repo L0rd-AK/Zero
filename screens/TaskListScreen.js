@@ -44,11 +44,14 @@ const updateTask = async (id, updates) => {
 const TaskListScreen = ({ route }) => {
   const [tasks, setTasks] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState(route?.params?.status || 'all');
 
   useEffect(() => {
+    if (route?.params?.status) {
+      setStatus(route.params.status);
+    }
     fetchTasks();
-  }, [status]);
+  }, [route?.params?.status]);
 
   const fetchTasks = async () => {
     try {
@@ -68,23 +71,38 @@ const TaskListScreen = ({ route }) => {
   };
 
   // Delete a task
-  const handleDeleteTask = async (id, updates) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      // Instead of DELETE request, use PUT to update the status
-      await fetch(`${API_BASE_URL}/tasks/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updates),
-      });
-      fetchTasks(); // Refresh the list after updating
-    } catch (error) {
-      console.error('Error updating task status:', error);
-    }
-  };
+    // Delete a task
+    const handleDeleteTask = async (id) => {
+      try {
+        console.log('Handling delete for task ID:', id); // Using the id parameter
+        const token = await AsyncStorage.getItem('token');
+        
+        // Make sure we're using the correct ID format
+        // MongoDB ObjectId is passed as a string from the client
+        const taskId = id.toString();
+        
+        // Update the task status to 'deleted'
+        const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: 'deleted' }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Server error:', errorData);
+          return;
+        }
+        
+        console.log('Task marked as deleted successfully');
+        fetchTasks(); // Refresh the list after updating
+      } catch (error) {
+        console.error('Error marking task as deleted:', error);
+      }
+    };
 
   const handleAddTask = async (name, estimatedDuration) => {
     try {
@@ -97,11 +115,42 @@ const TaskListScreen = ({ route }) => {
 
   const handleCompleteTask = async (id) => {
     try {
-      await updateTask(id, { end_time: new Date().toISOString() });
-      fetchTasks();
+      console.log('Handling complete for task ID:', id);
+      const token = await AsyncStorage.getItem('token');
+      
+      // Make sure we're using the correct ID format
+      const taskId = id.toString();
+      
+      // Update the task status to 'completed' and set end_time
+      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          status: 'completed',
+          end_time: new Date().toISOString() 
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Server error:', errorData);
+        return;
+      }
+      
+      console.log('Task marked as completed successfully');
+      fetchTasks(); // Refresh the list after updating
     } catch (error) {
-      console.error('Failed to complete task:', error);
+      console.error('Error marking task as completed:', error);
     }
+  };
+
+  const handleEditTask = async (task) => {
+    // This would typically open an edit modal
+    // For now, just log the task
+    console.log('Edit task:', task);
   };
 
   return (
@@ -110,12 +159,13 @@ const TaskListScreen = ({ route }) => {
       <FlatList
         style={styles.list}
         data={tasks}
-        keyExtractor={(item) => (item.id ? item.id.toString() : Math.random().toString())}
+        keyExtractor={(item) => (item._id ? item._id.toString() : Math.random().toString())}
         renderItem={({ item }) => (
           <TaskItem 
             task={item} 
             onComplete={handleCompleteTask} 
             onDelete={handleDeleteTask}
+            onEdit={handleEditTask}
           />
         )}
       />
