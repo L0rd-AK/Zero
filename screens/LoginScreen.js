@@ -3,7 +3,7 @@ import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define a fallback API URL in case environment variable isn't set
-const API_BASE_URL = process.env.API_URL || 'http://192.168.0.110:5000';
+const API_BASE_URL = process.env.API_URL || 'http://192.168.186.109:5000';
 
 const login = async (username, password) => {
   try {

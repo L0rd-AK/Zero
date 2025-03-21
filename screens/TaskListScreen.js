@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, Button, StyleSheet } from 'react-native';
+import { View, FlatList, Button, StyleSheet, Text } from 'react-native';
 import TaskItem from './TaskItem';
 import AddTaskModal from './AddTaskModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const API_BASE_URL = process.env.API_URL || 'http://192.168.0.110:5000';
+const API_BASE_URL = process.env.API_URL || 'http://192.168.186.109:5000';
 
 const getTasks = async () => {
   const token = await AsyncStorage.getItem('token');
@@ -41,42 +41,51 @@ const updateTask = async (id, updates) => {
   });
 };
 
-const TaskListScreen = () => {
+const TaskListScreen = ({ route }) => {
   const [tasks, setTasks] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [status, setStatus] = useState('all');
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [status]);
 
   const fetchTasks = async () => {
     try {
-      const response = await getTasks();
-      console.log('Tasks response:', response);
-      if (response && response.tasks) {
-        setTasks(response.tasks);
-      } else {
-        console.error('Invalid response format:', response);
-        setTasks([]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch tasks:', error);
-      setTasks([]);
-    }
-  };
-// Delete a task
-const handleDeleteTask = async (id) => {
-    try {
       const token = await AsyncStorage.getItem('token');
-      await fetch(`${API_BASE_URL}/tasks/${id}`, {
-        method: 'DELETE',
+      let url = `${API_BASE_URL}/tasks`;
+      if (status !== 'all') {
+        url += `?status=${status}`;
+      }
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      fetchTasks(); // Refresh the list after deletion
+      const data = await response.json();
+      setTasks(data.tasks || []);
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('Failed to fetch tasks:', error);
     }
   };
+
+  // Delete a task
+  const handleDeleteTask = async (id, updates) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      // Instead of DELETE request, use PUT to update the status
+      await fetch(`${API_BASE_URL}/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      fetchTasks(); // Refresh the list after updating
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
+  };
+
   const handleAddTask = async (name, estimatedDuration) => {
     try {
       await addTask(name, estimatedDuration);
@@ -97,11 +106,18 @@ const handleDeleteTask = async (id) => {
 
   return (
     <View style={styles.container}>
+      <Text style={styles.headerText}>{status === 'all' ? 'All Tasks' : `${status} Tasks`}</Text>
       <FlatList
         style={styles.list}
         data={tasks}
         keyExtractor={(item) => (item.id ? item.id.toString() : Math.random().toString())}
-        renderItem={({ item }) => <TaskItem task={item} onComplete={handleCompleteTask} />}
+        renderItem={({ item }) => (
+          <TaskItem 
+            task={item} 
+            onComplete={handleCompleteTask} 
+            onDelete={handleDeleteTask}
+          />
+        )}
       />
       
       <View style={styles.button}>
@@ -135,6 +151,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginTop: 10,
   },
+  headerText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  }
 });
 
 export default TaskListScreen;
